@@ -1,0 +1,51 @@
+.form-group{
+    margin-bottom: 30px;
+}
+
+.form-group.remove{
+    animation: hideRemove 500ms ease-in-out forwards;
+}
+
+.disable{
+    pointer-events: none;
+    opacity: 0.4!important;
+}
+
+
+
+@keyframes hideRemove {
+    from {opacity: 1;}
+    to {opacity: 0;}
+  }
+
+.form-group .card{
+    padding: 30px 15px;
+}
+
+.form-group p{
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.form-group input{
+    width: 300px;
+    max-width: 100%;
+    display: inline-block;
+    margin-bottom: 30px;
+}
+
+.btn{
+    opacity: 1;
+    transition: 250ms ease-in-out;
+}
+
+.hidden{
+    opacity: 0;
+}
+
+.card-image{
+    width: 150px;
+    height: 150px;
+    object-fit: contain;
+    max-width: 100%;
+}
