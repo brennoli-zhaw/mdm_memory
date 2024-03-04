@@ -22,6 +22,14 @@ function createInputFields(){
     remove.classList.add("remove", "btn", "btn-danger");
     remove.dataset.card = "card-" + cardCount;
 
+    //add file input
+    let input= document.createElement('input');
+    input.type="file";
+    input.name = "image-" + cardCount;
+    input.classList.add("card-" + cardCount, "form-control-file");
+    input.accept = "image/png, image/jpeg, image/jpg"
+    
+
     //add Text
     let description = document.createElement('p');
     description.innerText = "Karte #" + randomColor + ":"
@@ -32,18 +40,10 @@ function createInputFields(){
 
     //create markup
     cardWrapper.appendChild(description)
-    
+    cardWrapper.appendChild(input)
+    cardWrapper.appendChild(hiddenInput)
     cardWrapper.appendChild(remove)
     inputWrapper.appendChild(cardWrapper)
-    cardWrapper.appendChild(hiddenInput)
-    //failed multiple file upload attempt
-    
-    let input= document.createElement('input');
-    input.type="file";
-    input.name = "image-" + cardCount;
-    input.classList.add("card-" + cardCount, "form-control-file");
-    input.accept = "image/png, image/jpeg, image/jpg"
-    cardWrapper.appendChild(input)
     
     document.querySelector('#card-creator .submit-first').after(inputWrapper);
     updateSubmitButtons();
@@ -51,7 +51,8 @@ function createInputFields(){
 
 let generatedColors = [];
 function randomHexColor(){
-    let generatedColor = Math.floor(Math.random()*16777215).toString(16)
+    //we do not add a hashtag by intend
+    let generatedColor = (Math.random() * 0xFFFFFF << 0).toString(16).padStart(6, '0')
     if(generatedColors.indexOf(generatedColor) !== -1) return randomHexColor();
     generatedColors.push(generatedColor);
     return generatedColor;
@@ -72,6 +73,14 @@ function updateSubmitButtons(){
 
 }
 
+function showModal() {
+    document.querySelector("dialog").showModal();
+}
+  
+function closeModal(){
+    document.querySelector("dialog").close();
+}
+
 //add a dynamic eventlistener
 document.addEventListener("click", function(e){
     //remove button
@@ -80,12 +89,26 @@ document.addEventListener("click", function(e){
         //remove cards
         let removeCard = document.getElementById(target.dataset.card);
         removeCard.classList.add("remove")
-        disableSubmitButtons();
+        disableElements(document.querySelectorAll("#card-creator [type='submit']"));
     }
     //submit
     target = e.target.closest("#card-creator .submit"); // Or any other selector.
     if(target){
         sendCards(e);
+    }
+    //card
+    target = e.target.closest("#generated-cards.playing .generated-card:not(.face-up)"); // Or any other selector.
+    if(target){
+        let faceUpCards = document.querySelectorAll(".face-up:not(.found)")
+        if(faceUpCards.length == 2){
+            for(let faceUpCard of faceUpCards){
+                faceUpCard.classList.remove("face-up")
+            }
+        } else if(faceUpCards.length == 1 && faceUpCards[0].dataset.card == target.dataset.card){
+            faceUpCards[0].classList.add("found")
+            target.classList.add("found")
+        }
+        target.classList.add("face-up")
     }
 });
 
@@ -94,7 +117,7 @@ document.addEventListener("animationend", function(e){
     if(!e.target.classList.contains("remove") && !e.target.classList.contains("form-group")) return;
     e.target.remove()
     updateSubmitButtons()
-    enableSubmitButtons()
+    enableElements(document.querySelectorAll("#card-creator [type='submit']"))
 });
 
 //submit function
@@ -102,42 +125,76 @@ function sendCards(event){
     event.preventDefault();
     let form = event.target.closest("form")
     let formData = new FormData(form);
-    //check values
-    
-    let generatedCards = document.querySelectorAll("#card-creator .form-group");
-    for(let generatedCard of generatedCards){
-        let elementId = generatedCard.dataset.id
-        /*console.log("color-" + elementId + ": "+ formData.get("color-" + elementId));
-        console.log("image-" + elementId + ": "+ formData.get("image-" + elementId));*/
+    let sortedFormData = new FormData;
+    //sort formaData, since we prepend dynamically added inputs, the order is upside down
+    let sortedFormItems = Array
+        .from(formData.entries())
+        .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
+        console.log(sortedFormItems)
+    for(let item of sortedFormItems){
+        sortedFormData.append(item[0], item[1])
     }
+    //disable formGroups and submit button
+    disableElements(document.querySelectorAll("#card-creator .form-group"))
+    disableElements(document.querySelectorAll("#card-creator [type='submit']"))
+
     fetch('/retrieveCards', 
         {
             method: 'POST',
             headers: { },
-            body: formData
+            body: sortedFormData
         }).then(
             response => {
-                console.log(response)
                 response.text().then(function (text) {
                     returned_data = JSON.parse(text)
-                    console.log(returned_data);
-                    let generatedCards = document.getElementById("generated-cards")
-                    for(let image of returned_data){
-                        console.log(image);
-                        const byteCharacters = atob(image);
-                        const byteNumbers = new Array(byteCharacters.length);
-                        for (let i = 0; i < byteCharacters.length; i++) {
-                            byteNumbers[i] = byteCharacters.charCodeAt(i);
-                        }
-                        const byteArray = new Uint8Array(byteNumbers);
-                        let objectURL = URL.createObjectURL(new Blob([byteArray], { type: 'image/png' }));
-                        let img = document.createElement('img');
-                        img.src = objectURL;
-                        img.classList.add("card-image")
-                        generatedCards.appendChild(img)
+                    //remove all generated cards first
+                    let generatedCards = document.querySelectorAll(".generated-card")
+                    for(let generatedCard of generatedCards){
+                        generatedCard.remove()
                     }
-                    
-                    console.log(text)
+                    let generatedCardsWrapper = document.getElementById("generated-cards")
+                    for(let values of returned_data){
+                        //has image
+                        let card = document.createElement('div');
+                        card.classList.add("generated-card")
+                        if(values["image"] !== -1){
+                            const image = values["image"]
+                            const byteCharacters = atob(image);
+                            const byteNumbers = new Array(byteCharacters.length);
+                            for (let i = 0; i < byteCharacters.length; i++) {
+                                byteNumbers[i] = byteCharacters.charCodeAt(i);
+                            }
+                            const byteArray = new Uint8Array(byteNumbers);
+                            let objectURL = URL.createObjectURL(new Blob([byteArray], { type: 'image/png' }));
+                            let img = document.createElement('img');
+                            img.src = objectURL;
+                            img.classList.add("card-info")
+                            img.style.backgroundColor = "#" + values["color"]
+                            card.appendChild(img)
+                        } else{
+                            //take color instead
+                            let cardColor = document.createElement('div');
+                            cardColor.classList.add("card-info")
+                            cardColor.style.backgroundColor = "#" + values["color"]
+                            card.appendChild(cardColor)
+                        }
+                        let pseudoUID = Math.random().toString(36)
+                        card.dataset.card = pseudoUID
+                        let clone = card.cloneNode(true)
+                        generatedCardsWrapper.appendChild(card)
+                        generatedCardsWrapper.appendChild(clone)
+                    }
+                    let formGroups = document.querySelectorAll("#card-creator .form-group")
+                    for(let formGroup of formGroups){
+                        formGroup.classList.add('remove')
+                    }
+                    enableElements(document.querySelectorAll("#card-creator [type='submit']"))
+                    //show game controls
+                    generatedCardsWrapper.classList.remove("playing")
+                    resetGame()
+                    let controlSection = document.getElementById("play");
+                    controlSection.classList.remove("hidden")
+                    closeModal()
                 });
             }
         ).then(
@@ -148,29 +205,36 @@ function sendCards(event){
         
 }
 
-function enableSubmitButtons(){
-    let submitButtons = document.querySelectorAll("#card-creator [type='submit']")
-    for(let submitButton of submitButtons){
-        submitButton.classList.remove("disable");
+function enableElements(elements){
+    for(let element of elements){
+        element.classList.remove("disable");
     }
 }
 
-function disableSubmitButtons(){
-    let submitButtons = document.querySelectorAll("#card-creator [type='submit']")
-    for(let submitButton of submitButtons){
-        submitButton.classList.add("disable");
+function disableElements(elements){
+    for(let element of elements){
+        element.classList.add("disable");
     }
 }
 
-/*
-pythonshit
-colors = request.form
-    images = request.files
-    print(images)
-    image_binary = read_image(images)
-    response = make_response(image_binary)
-    response.headers.set('Content-Type', 'image/jpeg')
-    response.headers.set(
-        'Content-Disposition', 'attachment', filename='%s.jpg' % pid)
-    return response
-    */
+function resetGame(){
+    let playButton = document.querySelector("#play .btn");
+    playButton.innerText = "Spielen"
+
+}
+
+function startGame(){
+    let playButton = document.querySelector("#play .btn");
+    playButton.innerText = "Neu mischen"
+    let generatedCardsWrapper = document.getElementById("generated-cards")
+    generatedCardsWrapper.classList.add("playing")
+    //shuffle
+    for (let i = generatedCardsWrapper.children.length; i >= 0; i--) {
+        generatedCardsWrapper.appendChild(generatedCardsWrapper.children[Math.random() * i | 0]);
+    }
+    //reset if played already
+    let generatedCards = document.querySelectorAll(".generated-card")
+    for (let generatedCard of generatedCards) {
+        generatedCard.classList.remove("face-up", "found")
+    }
+}

@@ -11,12 +11,24 @@ def indexPage():
 
 @app.post('/retrieveCards')
 def dataAnalyze():
-    data = request.files
-    print(data)
+    files = request.files
+    colors = request.form.to_dict()
+    returnData = []
     #encode image to base 64 so it can be decoded on js side
     import base64
-    imageStrings = []
-    for file in data.values():
-     imageStrings.append(base64.b64encode(file.read()).decode("utf-8"))
-    print(data)
-    return jsonify(imageStrings)
+    #looping two times, because data keys can change, when a card is deleted
+    #loop through files, append file data to returnData
+    for index, file in enumerate(files.values()):
+     hasFile = file.filename != ''
+     returnData.append({})
+     #add file string
+     if(hasFile):
+          returnData[index]["image"] = base64.b64encode(file.read()).decode("utf-8")
+     else:
+          returnData[index]["image"] = -1
+     #loop through colors, append color data to returnData. enrich data with an # so css can read it as color
+    for index, color in enumerate(colors.values()):
+        returnData[index]["color"] = color
+     
+    returnData.reverse()
+    return jsonify(returnData)

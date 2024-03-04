@@ -1,3 +1,8 @@
+dialog{
+    width: 1200px;
+    max-width: calc(100vw - 60px);
+}
+
 .form-group{
     margin-bottom: 30px;
 }
@@ -36,16 +41,58 @@
 
 .btn{
     opacity: 1;
+    max-height: 100px;
     transition: 250ms ease-in-out;
 }
 
 .hidden{
     opacity: 0;
+    max-height: 0px;
 }
 
-.card-image{
-    width: 150px;
-    height: 150px;
-    object-fit: contain;
-    max-width: 100%;
+#generated-cards{
+    display: grid;
+    grid-template-columns: auto auto auto auto;
+    gap: 15px;
+    min-height: 200px;
+    width: 100%;
+}
+
+.generated-card{
+    position: relative;
+    min-height: 100px;
+    width: 100%;
+}
+
+.playing .generated-card:not(.face-up){
+    cursor: pointer;
+}
+
+.card-info{
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    object-fit: cover;
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+#generated-cards.playing .generated-card::after{
+    content:"";
+    background-color: #fff;
+    opacity: 0;
+    border: 1px solid #000;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    position: absolute;
+    transition: 250ms ease-in-out;
+}
+
+#generated-cards.playing .generated-card:not(.face-up)::after{
+    opacity: 1;
 }
